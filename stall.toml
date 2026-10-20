@@ -1,0 +1,25 @@
+# Rendered by wry's build.rs into the generated Ipc.kt, whose constructor runs on
+# the main thread while wry creates the webview, just before the first load.
+# It stands in for a slow device: the main thread stays busy in short slices
+# for stall_ms, so the load proceeds between slices while the posted
+# onPageStarted callback waits behind the next one. Both values come from the
+# launch intent (`--ei stall_ms N --ei slice_ms M`); stall_ms 0 disables it.
+[env]
+WRY_IPC_CLASS_EXTENSION = """
+    init {
+        val extras = (webView.context as? android.app.Activity)?.intent
+        val stallMs = extras?.getIntExtra("stall_ms", 3000) ?: 3000
+        val sliceMs = extras?.getIntExtra("slice_ms", 100) ?: 100
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val end = android.os.SystemClock.uptimeMillis() + stallMs
+        android.util.Log.i("REPRO", "main thread busy in " + sliceMs + "ms slices for " + stallMs + "ms")
+        lateinit var slice: Runnable
+        slice = Runnable {
+            if (android.os.SystemClock.uptimeMillis() < end) {
+                android.os.SystemClock.sleep(sliceMs.toLong())
+                handler.post(slice)
+            }
+        }
+        handler.post(slice)
+    }
+"""
