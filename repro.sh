@@ -12,6 +12,7 @@ cd "$(dirname "$0")"
 export ANDROID_SERIAL
 app=com.example.wryipcrepro
 
+mkdir -p .cargo
 cat stall.toml "variants/$variant.toml" > .cargo/config.toml
 if [ -z "${SKIP_BUILD:-}" ]; then
   [ -d gen/android ] || cargo tauri android init
